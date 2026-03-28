@@ -1,8 +1,31 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { pool } from "@/lib/db";
 
-const SECTION_KEY = 'popular_products';
-const ITEM_TYPE = 'product';
+const SECTION_KEY = "popular_products";
+const ITEM_TYPE = "product";
+
+type ProductRow = {
+  id: string;
+  name: string;
+  slug: string;
+  price: number;
+};
+
+type SelectedRow = {
+  ref_id: string;
+  display_order: number;
+};
+
+type PopularProductItem = {
+  id: string;
+  selected: boolean;
+  display_order: number | string;
+};
+
+type PostBody = {
+  sectionId: string;
+  items: PopularProductItem[];
+};
 
 export async function GET() {
   try {
@@ -11,13 +34,16 @@ export async function GET() {
       [SECTION_KEY]
     );
     const sectionId = sectionRes.rows?.[0]?.id;
+
     if (!sectionId) {
       return NextResponse.json({ error: "Section not found" }, { status: 404 });
     }
 
     const [allRes, selectedRes] = await Promise.all([
-      pool.query(`select id, name, slug, price from products where is_active = true order by name asc`),
-      pool.query(
+      pool.query<ProductRow>(
+        `select id, name, slug, price from products where is_active = true order by name asc`
+      ),
+      pool.query<SelectedRow>(
         `select ref_id, display_order
          from home_section_items
          where section_id = $1
@@ -27,11 +53,12 @@ export async function GET() {
       ),
     ]);
 
-    const selectedMap = new Map();
-    for (const row of selectedRes.rows)
+    const selectedMap = new Map<string, number>();
+    for (const row of selectedRes.rows) {
       selectedMap.set(row.ref_id, row.display_order);
+    }
 
-    const items = allRes.rows.map((p) => ({
+    const items = allRes.rows.map((p: ProductRow) => ({
       ...p,
       selected: selectedMap.has(p.id),
       display_order: selectedMap.get(p.id) ?? 0,
@@ -46,9 +73,9 @@ export async function GET() {
   }
 }
 
-export async function POST(req) {
+export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const body: PostBody = await req.json();
     const { sectionId, items } = body;
 
     await pool.query("begin");
@@ -61,8 +88,8 @@ export async function POST(req) {
     );
 
     const selected = items
-      .filter((i) => i.selected)
-      .map((i) => ({
+      .filter((i: PopularProductItem) => i.selected)
+      .map((i: PopularProductItem) => ({
         ref_id: i.id,
         display_order: Number(i.display_order) || 0,
       }))

@@ -1,6 +1,26 @@
 import { NextResponse } from "next/server";
 import { pool } from "@/lib/db";
 
+type ConcernRow = {
+  id: string;
+  title: string;
+  is_active: boolean;
+};
+
+type PersonaRow = {
+  id: string;
+  title: string;
+  is_active: boolean;
+};
+
+type SelectedConcernRow = {
+  concern_id: string;
+};
+
+type SelectedPersonaRow = {
+  persona_id: string;
+};
+
 export async function GET(
   _: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -10,25 +30,25 @@ export async function GET(
 
     const [concernsRes, personasRes, selectedConcernsRes, selectedPersonasRes] =
       await Promise.all([
-        pool.query(
+        pool.query<ConcernRow>(
           `select id, title, is_active
            from concerns
            where is_active = true
            order by title asc`
         ),
-        pool.query(
+        pool.query<PersonaRow>(
           `select id, title, is_active
            from personas
            where is_active = true
            order by title asc`
         ),
-        pool.query(
+        pool.query<SelectedConcernRow>(
           `select concern_id
            from product_concerns
            where product_id = $1::uuid`,
           [id]
         ),
-        pool.query(
+        pool.query<SelectedPersonaRow>(
           `select persona_id
            from product_personas
            where product_id = $1::uuid`,
@@ -37,10 +57,10 @@ export async function GET(
       ]);
 
     const selectedConcernIds = selectedConcernsRes.rows.map(
-      (row) => row.concern_id
+      (row: SelectedConcernRow) => row.concern_id
     );
     const selectedPersonaIds = selectedPersonasRes.rows.map(
-      (row) => row.persona_id
+      (row: SelectedPersonaRow) => row.persona_id
     );
 
     return NextResponse.json({
