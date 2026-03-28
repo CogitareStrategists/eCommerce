@@ -2,9 +2,17 @@
 
 import { useEffect, useState } from "react";
 
+type PopularProductRow = {
+  id: string;
+  selected: boolean;
+  name: string;
+  price: number;
+  display_order: number;
+};
+
 export default function AdminPopularProductsPage() {
   const [sectionId, setSectionId] = useState("");
-  const [rows, setRows] = useState([]);
+  const [rows, setRows] = useState<PopularProductRow[]>([]);
   const [saving, setSaving] = useState(false);
 
   async function load() {
@@ -12,7 +20,7 @@ export default function AdminPopularProductsPage() {
       cache: "no-store",
     });
     const data = await res.json();
-    setSectionId(data.sectionId);
+    setSectionId(data.sectionId || "");
     setRows(data.items || []);
   }
 
